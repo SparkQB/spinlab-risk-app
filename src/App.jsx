@@ -406,8 +406,12 @@ function Results({ result, onReset }) {
               {result.weighting_note && <div style={{ marginTop:8, fontSize:11, color:C.muted, fontStyle:"italic", lineHeight:1.6 }}>{s(result.weighting_note)}</div>}
             </div>
             <div style={{ textAlign:"right", flexShrink:0 }}>
-              <div style={{ fontSize:11, color:C.white, fontWeight:600 }}>{s(result.player)}</div>
-              <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>{s(result.date)}</div>
+              {result.player && result.player !== "Athlete" && result.player !== "Unknown" && (
+                <div style={{ fontSize:11, color:C.white, fontWeight:600 }}>{s(result.player)}</div>
+              )}
+              {result.date && result.date !== "Unknown" && (
+                <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>{s(result.date)}</div>
+              )}
               {result.confidence!=="HIGH" && <div style={{ marginTop:8, fontSize:10, color:C.orange, background:C.orangeDim, border:"1px solid "+C.orangeBorder, borderRadius:5, padding:"4px 8px", maxWidth:180, lineHeight:1.5 }}>⚠ {s(result.confidence_note)}</div>}
             </div>
           </div>
@@ -604,6 +608,21 @@ export default function App() {
       if (!data || typeof data !== "object") throw new Error("Invalid response: not an object");
       if (!data.overall_risk) throw new Error("Invalid response: missing overall_risk");
       if (!data.areas) throw new Error("Invalid response: missing areas");
+      // Normalize priority_flags and green_lights to plain strings
+      if (data.priority_flags) {
+        data.priority_flags = data.priority_flags.map(f =>
+          typeof f === "object" && f !== null
+            ? (f.flag ? f.flag + (f.detail ? " — " + f.detail : "") : JSON.stringify(f))
+            : String(f)
+        );
+      }
+      if (data.green_lights) {
+        data.green_lights = data.green_lights.map(g =>
+          typeof g === "object" && g !== null
+            ? (g.flag || g.text || g.detail || JSON.stringify(g))
+            : String(g)
+        );
+      }
       setResult(data);
       setStep("results");
       // Encode results into URL for sharing
