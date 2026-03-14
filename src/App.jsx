@@ -53,10 +53,14 @@ function decodeResults(encoded) {
 
 async function shortenUrl(longUrl) {
   try {
-    const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl));
+    const res = await fetch('https://spinlab-risk-proxy.vercel.app/api/shorten', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: longUrl }),
+    });
     if (!res.ok) return longUrl;
-    const short = await res.text();
-    return short.startsWith('http') ? short : longUrl;
+    const data = await res.json();
+    return data.short_url || longUrl;
   } catch(e) {
     return longUrl;
   }
@@ -638,11 +642,32 @@ export default function App() {
         );
       }
       if (data.green_lights) {
-        data.green_lights = data.green_lights.map(g =>
-          typeof g === "object" && g !== null
-            ? (g.flag || g.text || g.detail || JSON.stringify(g))
-            : String(g)
-        );
+        data.green_lights = data.green_lights.map(g => {
+          if (typeof g === "string") return g;
+          if (typeof g === "object" && g !== null) {
+            if (g.metric && g.note) return g.metric + (g.value ? " (" + g.value + ")" : "") + " — " + g.note;
+            if (g.metric) return g.metric + (g.value ? ": " + g.value : "");
+            if (g.flag && g.detail) return g.flag + " — " + g.detail;
+            if (g.flag) return g.flag;
+            if (g.text) return g.text;
+            if (g.note) return g.note;
+            return JSON.stringify(g);
+          }
+          return String(g);
+        });
+      }
+      if (data.priority_flags) {
+        data.priority_flags = data.priority_flags.map(f => {
+          if (typeof f === "string") return f;
+          if (typeof f === "object" && f !== null) {
+            if (f.flag && f.detail) return f.flag + " — " + f.detail;
+            if (f.flag) return f.flag;
+            if (f.metric && f.note) return f.metric + " — " + f.note;
+            if (f.text) return f.text;
+            return JSON.stringify(f);
+          }
+          return String(f);
+        });
       }
       setResult(data);
       setStep("results");
