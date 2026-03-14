@@ -51,6 +51,17 @@ function decodeResults(encoded) {
   }
 }
 
+async function shortenUrl(longUrl) {
+  try {
+    const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl));
+    if (!res.ok) return longUrl;
+    const short = await res.text();
+    return short.startsWith('http') ? short : longUrl;
+  } catch(e) {
+    return longUrl;
+  }
+}
+
 function buildPrompt(ctx) {
   const lines = [
     "You are a sports biomechanics and injury risk specialist analyzing a SpinLab AI QB Throw Report.",
@@ -357,6 +368,8 @@ function Results({ result, onReset }) {
   const [tech, setTech] = useState(false);
   const [tab, setTab] = useState("scores");
   const [copied, setCopied] = useState(false);
+  const [shortUrl, setShortUrl] = useState("");
+  const [shortening, setShortening] = useState(false);
   const cfg = RISK[result.overall_risk] || RISK.LOW;
   const areas = result.areas || {};
   const KEYS = ["shoulder","elbow","trunk","hip"];
@@ -385,12 +398,20 @@ function Results({ result, onReset }) {
         <Logo height={18} />
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={() => setTech(m=>!m)} style={{ padding:"5px 12px", borderRadius:6, border:"1px solid "+(tech?C.cyanBorder:C.border), background:tech?C.cyanDim:"none", color:tech?C.cyan:C.muted, cursor:"pointer", fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"inherit" }}>{tech?"Plain":"Technical"}</button>
-          <button onClick={() => {
-            const url = window.location.href.split("#")[0] + window.location.hash;
+          <button onClick={async () => {
+            if (shortening) return;
+            let url = shortUrl;
+            if (!url) {
+              setShortening(true);
+              const long = window.location.href.split("#")[0] + window.location.hash;
+              url = await shortenUrl(long);
+              setShortUrl(url);
+              setShortening(false);
+            }
             navigator.clipboard.writeText(url).then(() => setCopied(true)).catch(() => {});
             setTimeout(() => setCopied(false), 2000);
           }} style={{ padding:"5px 12px", borderRadius:6, border:"1px solid "+(copied?C.cyanBorder:C.border), background:copied?C.cyanDim:"none", color:copied?C.cyan:C.muted, cursor:"pointer", fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"inherit" }}>
-            {copied ? "Copied ✓" : "Share"}
+            {shortening ? "..." : copied ? "Copied ✓" : "Share"}
           </button>
           <button onClick={onReset} style={{ padding:"5px 12px", borderRadius:6, border:"1px solid "+C.border, background:"none", color:C.muted, cursor:"pointer", fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"inherit" }}>New report</button>
         </div>
